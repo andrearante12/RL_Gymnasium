@@ -22,7 +22,7 @@ def calculatescore(returns,steers,env_v,alpha):
     else:
         print("car hasn't U turn")
 
-    #is halt before termination
+    #halt penalty
     halt=is_halted_speed(env_v)
     if(halt!=0):
         print("car halts for long time")
