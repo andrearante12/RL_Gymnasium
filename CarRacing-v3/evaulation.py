@@ -63,7 +63,7 @@ def make_env(render_mode=None, domain_randomize=False):
         "CarRacing-v3",
         render_mode=render_mode,
         domain_randomize=domain_randomize,
-        continuous=False,  
+        continuous=True,  
     )
     env = DiscretizeCarRacing(env)   
     env = FrameStack84(env, k=4)    
@@ -78,13 +78,6 @@ def calculatescore(returns,steers,env_v,alpha):
     else:
         print("car isn't zigzag too much")
 
-    #U turn penalty
-    uturn=uturn_metrics(steers,threshold=20)
-    if(uturn!=0):
-        print("car has U turn")
-    else:
-        print("car hasn't U turn")
-
     #halt penalty
     halt=is_halted_speed(env_v)
     if(halt!=0):
@@ -92,23 +85,26 @@ def calculatescore(returns,steers,env_v,alpha):
     else:
         print("car isn't halt for long time")
 
-    return returns-alpha*halt-alpha*uturn-alpha*m
+    return returns-alpha*halt-alpha*m
 
 
-def evaluate(qfile: str,qtars: str,max_steps: int = 1200, render: bool = True):
+def evaluate(qfile: str,max_steps: int = 1200, render: bool = True):
     
     seeds=[0,2]
     steers=[]
     device= "cuda" if torch.cuda.is_available() else "cpu"
+    
     #test case 1:
     env = make_env(render_mode="rgb_array", domain_randomize=True)
+    #Todo: change to your own agent
     agent = CarRaceAgent(n_actions=env.action_space.n, device=device)
-    agent.load_parameter(qfile,qtars)
+    agent.load_parameter(qfile)
     rets = []
     s, _ = env.reset(seed=seeds[0])
     ep_ret = 0.0
     while True:
-        a = agent.act(s, greedy=True)
+        #Todo: change to you own agent action
+        a = agent.act(s)
         steers.append(a[0])
         s, r, terminated, truncated, info = env.step(a)
         ep_ret += r
@@ -117,17 +113,17 @@ def evaluate(qfile: str,qtars: str,max_steps: int = 1200, render: bool = True):
 
     ep_ret1=calculatescore(ep_ret,steers,env,0.01)
     env.close()
+    imageio.mimsave("testcase1.gif", frames, fps=30)    
     print("Test case 1 Eval returns:", ep_ret1)
 
     #test case 2:
     env = make_env(render_mode="rgb_array", domain_randomize=True)
-    agent = CarRaceAgent(n_actions=env.action_space.n, device=device)
-    agent.load_parameter(qfile,qtars)
     rets = []
     s, _ = env.reset(seed=seeds[1])
     ep_ret = 0.0
     while True:
-        a = agent.act(s, greedy=True)
+        #Todo: change to you own agent action        
+        a = agent.act(s)
         steers.append(a[0])
         s, r, terminated, truncated, info = env.step(a)
         ep_ret += r
@@ -136,6 +132,7 @@ def evaluate(qfile: str,qtars: str,max_steps: int = 1200, render: bool = True):
 
     ep_ret2=calculatescore(ep_ret,steers,env,0.01)
     env.close()
+    imageio.mimsave("testcase2.gif", frames2, fps=30)
     print("Test case 2 Eval returns:", ep_ret2)
 
     return rets
@@ -144,6 +141,6 @@ def evaluate(qfile: str,qtars: str,max_steps: int = 1200, render: bool = True):
 if __name__ == "__main__":
     parser = parse_arg()
     args = parser.parse_args()
+    #Todo: put your saved agent parameter file here if you have
     qfile="q.pt"
-    qtars="qtar.pt"
-    evaluate(qfile,qtars)
+    evaluate(qfile)
