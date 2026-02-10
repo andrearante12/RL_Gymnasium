@@ -32,7 +32,7 @@
    Besides the required functions listed above, you can implement other functions inside the agent class as you wish.
 
 
-1. Running evaluation script:
+2. Running evaluation script:
 
    I provided two sample testcases for each problems to help you verify your agent functionalities and improve your agent performance. However, the eventual official scores for each problems will be tested more cases besides these two. In order to make the evaluation fair, please don't change the testcases by yourself.
    To run the evaluation, simply run the following command for each agent. 
@@ -41,5 +41,16 @@
    ```
    It will output the scores for each testcase. 
 
+3. Rubrics for each agent:
 
+   The overal scores are composed of the original return from the agent minus some penalties:
+   (1). Car Racing penalty:
+      ```
+      car is making zigzag while on a straight line.
+      car is making a halt during running
+      ```
+   (2). Lunar Lander penalty:
+      ```
+      Lander makes sharp angles
+      ```
    
