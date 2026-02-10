@@ -1,4 +1,4 @@
-#Welcome to ECE6882 Project 2 Repo
+# Welcome to ECE6882 Project 2 Repo
 ==========
 
 1. Description of project
