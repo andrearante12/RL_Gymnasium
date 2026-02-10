@@ -27,7 +27,17 @@
        #agent save parameter (you need to implement this function if you use model based framework such as DQN, PPO, etc)
        def save_parameter(self,qfile):
    ```
+   Besides the required functions listed above, you can implement other functions inside the agent class as you wish.
 
-3. Running evaluation script
 
-4. Detailed Rubrics 
+2. Running evaluation script:
+
+   I provided two sample testcases for each problems to help you verify your agent functionalities and improve your agent performance. However, the eventual official scores for each problems will be tested more cases besides these two. In order to make the evaluation fair, please don't change the testcases by yourself.
+   To run the evaluation, simply run the following command for each agent. 
+   ```
+   python evaluation.py
+   ```
+   It will output the scores for each testcase. 
+
+
+   
