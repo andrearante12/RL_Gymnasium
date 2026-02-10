@@ -35,7 +35,8 @@ def evaluate(
     n_actions = int(tmp_env.action_space.n)
     tmp_env.close()
 
-    agent = DQNAgent(state_dim=obs_dim, n_actions=n_actions, device=device)
+    #Todo: set your own agent
+    agent = LunarLanderAgent()
     agent.load_parameter(qfile)
 
     for i, seed in enumerate(seeds, start=1):
@@ -51,6 +52,7 @@ def evaluate(
 
         for _ in range(max_steps):
             frames.append(env.render())
+            #Todo: set your agents' action selection function
             a = agent.act(s)
             s, r, terminated, truncated, info = env.step(a)
 
@@ -68,23 +70,12 @@ def evaluate(
 
         # A simple "robustness-adjusted" score (optional)
         # Lower angle/angvel is better.
-        imageio.mimsave("testcase_{}.gif".format(seed), frames, fps=30)
+        imageio.mimsave("./sample_testcase/testcase_{}.gif".format(seed), frames, fps=30)
         adjusted = ep_ret - 0.01 * (angle_sum + angvel_sum)
 
-        print(
-            f"[Eval {i}] seed={seed:>3} | score={adjusted:8.2f}"
-        )
+        print(f"[Eval {i}] | score={adjusted:8.2f}")
 
-        results.append(
-            {
-                "seed": int(seed),
-                "return": ep_ret,
-                "length": ep_len,
-                "angle_sum": angle_sum,
-                "angvel_sum": angvel_sum,
-                "adjusted": adjusted,
-            }
-        )
+        results.append(adjusted)
 
     return results
 
