@@ -88,7 +88,7 @@ def evaluate(qfile: str,max_steps: int = 1200, render: bool = True):
     frames = []
     env = make_env(render_mode="rgb_array",domain_randomize=True)
     #Todo: set your own agent
-    agent = Agent()
+    agent = CarRaceAgent()
     agent.load_parameter(qfile)
     rets = []
     s, _ = env.reset(seed=seeds[0])
