@@ -3,7 +3,6 @@ import gymnasium as gym
 import torch
 import numpy as np
 import imageio.v2 as imageio
-#from LunarAgent import DQNAgent
 from xxxAgent import make_env,xxxAgent
 
 def evaluate(
