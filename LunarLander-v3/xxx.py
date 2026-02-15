@@ -36,4 +36,5 @@ class xxxAgent:
 
     def load_parameter(self, file: str):
 
+    #other functions can be here
     
