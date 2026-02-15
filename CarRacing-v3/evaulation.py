@@ -23,8 +23,7 @@ def evaluation(env_id="CarRacing-v3", env=None, agent=None, testcase=[0,2]):
             done = terminated or truncated
             ep_ret += float(reward)
         print("Test case {}---score:{}".format(ep,ep_ret))
-        if(render==True):
-            imageio.mimsave("testcase{}.gif".format(ep), frames, fps=30)
+        imageio.mimsave("testcase{}.gif".format(ep), frames, fps=30)
         rets.append(ep_ret)
 
     env.close()
