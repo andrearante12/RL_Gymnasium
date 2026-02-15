@@ -22,10 +22,8 @@
        def act(self, state: np.ndarray):
 
        #agent load parameter (you need to implement this function if you use model based framework such as DQN, PPO, etc)
-       def load_parameter(self,qfile):
+       def load_parameter(self,file):
 
-       #agent save parameter (you need to implement this function if you use model based framework such as DQN, PPO, etc)
-       def save_parameter(self,qfile):
    ```
    The agent function names should be: CarRace-v3: CarRaceAgent, LunarLander-v3: LunarLanderAgent, Humanoid: HumanoidAgent
    
