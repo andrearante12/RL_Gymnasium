@@ -34,6 +34,6 @@ class xxxAgent:
 
     def act(self, s):
 
-    def load_parameter(self, qfile: str):
+    def load_parameter(self, file: str):
 
     
