@@ -10,14 +10,9 @@ def evaluate(
     env,
     testcase=[0, 2],
 ):
-    """
-    Evaluates a saved agent on multiple seeds.
-    If wind_test=True, we enable wind (harder) during eval.
-    """
     results = []
 
     for i, seed in enumerate(testcase, start=1):
-        #env = make_env(render_mode="rgb_array" if render else None, enable_wind=wind_test)
         frames=[]
         s, _ = env.reset(seed=int(seed))
         ep_ret = 0.0
@@ -26,21 +21,14 @@ def evaluate(
             frames.append(env.render())
             a = agent.act(s, greedy=True)
             s, r, terminated, truncated, info = env.step(a)
-
             ep_ret += float(r)
             ep_len += 1
             if terminated or truncated:
                 break
-
         env.close()
-
         imageio.mimsave("testcase_{}.gif".format(seed), frames, fps=30)
         adjusted = ep_ret #- 0.01 * (angle_sum + angvel_sum)
-
-        print(
-            f"[Eval {i}] seed={seed:>3} | score={adjusted:8.2f}"
-        )
-
+        print(f"[Eval {i}] seed={seed:>3} | score={adjusted:8.2f}")
         results.append(ep_ret)
 
     return results
