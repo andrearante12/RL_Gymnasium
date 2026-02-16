@@ -7,6 +7,7 @@ from xxx import xxxAgent,make_env
 import torch
 import gymnasium as gym
 import pdb
+import imageio.v2 as imageio
 
 
 def evaluate(agent,testcase):
