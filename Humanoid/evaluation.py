@@ -3,7 +3,7 @@ import os
 
 os.environ.setdefault("MUJOCO_GL", "egl") 
 import numpy as np
-from xxxAgent import xxxAgent,make_env
+from xxx import xxxAgent,make_env
 import torch
 import gymnasium as gym
 import pdb
