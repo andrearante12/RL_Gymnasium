@@ -30,7 +30,7 @@ def make_env(render_mode=None, enable_wind=True, gravity=-10.0,
 
 #define your own agent
 class xxxAgent:
-    def __init__(self,**kwargs)
+    def __init__(self,**kwargs):
 
     def act(self, s, **kwargs):
 
