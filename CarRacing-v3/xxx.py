@@ -24,11 +24,11 @@ def make_env(render_mode=None):
 
 #Your agent is here
 class xxxAgent(nn.Module):
-    def __init__(self):
+    def __init__(self, **kwargs):
 
-    def act(self, x):
+    def act(self, x, **kwargs):
 
-    def load_parameter(self,file):
+    def load_parameter(self,file, **kwargs):
 
     #other functions can be extended here
 
