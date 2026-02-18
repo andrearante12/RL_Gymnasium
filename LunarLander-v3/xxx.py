@@ -30,11 +30,11 @@ def make_env(render_mode=None, enable_wind=True, gravity=-10.0,
 
 #define your own agent
 class xxxAgent:
-    def __init__(self)
+    def __init__(self,**kwargs)
 
-    def act(self, s):
+    def act(self, s, **kwargs):
 
-    def load_parameter(self, file: str):
+    def load_parameter(self, file: str, **kwargs):
 
     #other functions can be here
     
