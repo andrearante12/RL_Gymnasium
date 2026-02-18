@@ -28,7 +28,7 @@
    
    Besides the required functions listed above, you can implement other functions inside the agent class as you wish.
    
-   **For CarRaceAgent, if you would like to define a wrapper to better fit into your agent, please finish the following classes in xxx.py:**
+   **For CarRaceAgent, if you would like to define a wrapper of the environment to better fit into your agent, please finish the following classes in xxx.py:**
    ```
    def make_env(render_mode=None):
    ```
