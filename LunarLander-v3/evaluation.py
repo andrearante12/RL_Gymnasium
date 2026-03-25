@@ -3,7 +3,7 @@ import gymnasium as gym
 import torch
 import numpy as np
 import imageio.v2 as imageio
-from xxxAgent import make_env,xxxAgent
+from xxx import make_env, xxxAgent
 
 def evaluate(
     agent,
@@ -25,19 +25,19 @@ def evaluate(
             ep_len += 1
             if terminated or truncated:
                 break
-        env.close()
         imageio.mimsave("testcase_{}.gif".format(seed), frames, fps=30)
         adjusted = ep_ret #- 0.01 * (angle_sum + angvel_sum)
         print(f"[Eval {i}] seed={seed:>3} | score={adjusted:8.2f}")
         results.append(ep_ret)
 
+    env.close()
     return results
 
 
 if __name__ == "__main__":
     # Define your environment
     # example
-    env = make_env(render_mode="rgb_array",enable_wind=True)
+    env = make_env(render_mode="rgb_array", enable_wind=True)
     #initialize your agent
     #example
     obs_dim = int(np.prod(env.observation_space.shape))

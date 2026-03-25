@@ -1,10 +1,5 @@
-import gymnasium as gym
-from agent import CarRaceAgent
-import imageio.v2 as imageio
-from env import ImageEnv
-import pdb
-import torch
 import numpy as np
+import imageio.v2 as imageio
 #your submission file
 from xxx import xxxAgent, make_env
 
@@ -37,7 +32,7 @@ if __name__ == "__main__":
     env = make_env(render_mode="rgb_array")
     #initialize your agent
     #example:
-    n_actions = env.action_space.n
+    n_actions = env.action_space.shape[0]  # Box action space (continuous)
     input_shape = env.observation_space.shape
     agent = xxxAgent(input_shape, n_actions)
     #load your agent parameter if you have
