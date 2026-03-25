@@ -1,216 +1,101 @@
 """
-PPO training script for LunarLander-v3.
+SB3 PPO training for LunarLander-v3.
+
+Target: Windows with RTX 4070 — SubprocVecEnv runs natively.
+
+Saves:
+  sb3_checkpoint.zip  — full training state for resume
+  xx.zip              — best model for evaluation harness (load_parameter("xx.pt"))
 
 Usage:
     python train.py
-
-Two files are maintained:
-  checkpoint.pt  — full training state (model + optimizer + counters), for resume
-  xx.pt          — best model weights only, for evaluation
-
-Interrupt with Ctrl-C at any time; restart with the same command to resume.
 """
 
 import os
-import numpy as np
-import torch
-import torch.optim as optim
-from xxx import xxxAgent, make_env
+from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import SubprocVecEnv
+from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
+from xxx import make_env
 
-# ---------------------------------------------------------------------------
-# Hyperparameters
-# ---------------------------------------------------------------------------
-N_STEPS       = 2048
-N_EPOCHS      = 10
-BATCH_SIZE    = 64
-LR            = 3e-4
-GAMMA         = 0.99
-LAMBDA        = 0.95
-CLIP_EPS      = 0.2
-VF_COEF       = 0.5
-ENT_COEF      = 0.01
-MAX_GRAD_NORM = 0.5
-TOTAL_STEPS   = 1_000_000
-SAVE_INTERVAL = 50_000
-LOG_INTERVAL  = 10
+N_ENVS      = 8
+TOTAL_STEPS = 1_000_000
+SAVE_FREQ   = 50_000
+EVAL_FREQ   = 25_000
 
-BEST_CKPT   = "xx.pt"
-RESUME_CKPT = "checkpoint.pt"
+RESUME_CKPT = "sb3_checkpoint"
+BEST_MODEL  = "xx"
 
 
-# ---------------------------------------------------------------------------
-# GAE
-# ---------------------------------------------------------------------------
+class OverwriteCheckpointCallback(BaseCallback):
+    def __init__(self, save_freq, save_path, verbose=1):
+        super().__init__(verbose)
+        self.save_freq = save_freq
+        self.save_path = save_path
 
-def compute_gae(rewards, values, dones, next_value, gamma=GAMMA, lam=LAMBDA):
-    T = len(rewards)
-    advantages = np.zeros(T, dtype=np.float32)
-    last_gae = 0.0
-    for t in reversed(range(T)):
-        next_val = next_value if t == T - 1 else values[t + 1]
-        delta = rewards[t] + gamma * next_val * (1.0 - dones[t]) - values[t]
-        last_gae = delta + gamma * lam * (1.0 - dones[t]) * last_gae
-        advantages[t] = last_gae
-    returns = advantages + np.array(values, dtype=np.float32)
-    return advantages, returns
+    def _on_step(self) -> bool:
+        if self.num_timesteps % self.save_freq < self.training_env.num_envs:
+            self.model.save(self.save_path)
+            if self.verbose:
+                print(f"  -> Checkpoint saved at step {self.num_timesteps:,}")
+        return True
 
-
-# ---------------------------------------------------------------------------
-# Training loop
-# ---------------------------------------------------------------------------
 
 def train():
-    env = make_env()
-    obs_dim   = int(np.prod(env.observation_space.shape))
-    n_actions = int(env.action_space.n)
-    agent = xxxAgent(state_dim=obs_dim, n_actions=n_actions)
-    agent.train()
-    optimizer = optim.Adam(agent.parameters(), lr=LR)
-    device = agent.device
+    env      = SubprocVecEnv([make_env] * N_ENVS)
+    eval_env = SubprocVecEnv([make_env])
 
-    total_steps      = 0
-    best_mean_return = -float('inf')
-    episode_returns  = []
-    last_save        = 0
+    eval_cb = EvalCallback(
+        eval_env,
+        best_model_save_path=".",
+        n_eval_episodes=10,
+        eval_freq=max(EVAL_FREQ // N_ENVS, 1),
+        deterministic=True,
+        verbose=1,
+    )
+    ckpt_cb = OverwriteCheckpointCallback(SAVE_FREQ, RESUME_CKPT, verbose=1)
 
-    if os.path.exists(RESUME_CKPT):
-        state = torch.load(RESUME_CKPT, map_location=device, weights_only=True)
-        agent.policy.load_state_dict(state['model'])
-        optimizer.load_state_dict(state['optimizer'])
-        total_steps      = state['total_steps']
-        best_mean_return = state['best_mean_return']
-        episode_returns  = state['episode_returns']
-        last_save        = total_steps
-        print(f"Resumed from step {total_steps:,} | best return so far: {best_mean_return:.1f}")
+    if os.path.exists(RESUME_CKPT + ".zip"):
+        print(f"Resuming from {RESUME_CKPT}.zip ...")
+        model     = PPO.load(RESUME_CKPT, env=env, device="auto")
+        remaining = max(0, TOTAL_STEPS - model.num_timesteps)
+        print(f"  Completed {model.num_timesteps:,} / {TOTAL_STEPS:,} steps — {remaining:,} remaining")
+        model.learn(
+            total_timesteps=remaining,
+            reset_num_timesteps=False,
+            callback=[eval_cb, ckpt_cb],
+            progress_bar=True,
+        )
     else:
-        print(f"Starting fresh training on: {device}")
+        print("Starting fresh training...")
+        model = PPO(
+            "MlpPolicy",
+            env,
+            n_steps=1024,           # per env; 1024 × 8 = 8192 total per rollout
+            batch_size=64,
+            n_epochs=4,
+            learning_rate=1e-3,
+            gamma=0.999,
+            gae_lambda=0.98,
+            ent_coef=0.01,
+            normalize_advantage=True,
+            verbose=1,
+            tensorboard_log="./tb_logs",
+        )
+        model.learn(
+            total_timesteps=TOTAL_STEPS,
+            callback=[eval_cb, ckpt_cb],
+            progress_bar=True,
+        )
 
-    print(f"Target: {TOTAL_STEPS:,} steps")
+    if os.path.exists("best_model.zip"):
+        os.replace("best_model.zip", BEST_MODEL + ".zip")
+        print(f"Best model saved as {BEST_MODEL}.zip")
+    else:
+        model.save(BEST_MODEL)
+        print(f"Final model saved as {BEST_MODEL}.zip")
 
-    obs, _ = env.reset()
-    rollout_count  = 0
-    current_return = 0.0
-
-    while total_steps < TOTAL_STEPS:
-        # ------------------------------------------------------------------
-        # 1. Collect rollout
-        # ------------------------------------------------------------------
-        obs_buf  = np.zeros((N_STEPS, obs_dim), dtype=np.float32)
-        act_buf  = np.zeros(N_STEPS, dtype=np.int64)
-        rew_buf  = np.zeros(N_STEPS, dtype=np.float32)
-        val_buf  = np.zeros(N_STEPS, dtype=np.float32)
-        lp_buf   = np.zeros(N_STEPS, dtype=np.float32)
-        done_buf = np.zeros(N_STEPS, dtype=np.float32)
-
-        for step in range(N_STEPS):
-            s_tensor = torch.as_tensor(obs, dtype=torch.float32, device=device).unsqueeze(0)
-            with torch.no_grad():
-                action, log_prob, value, _ = agent.forward_train(s_tensor)
-
-            a = int(action.item())
-            next_obs, reward, terminated, truncated, _ = env.step(a)
-            done = terminated or truncated
-            current_return += reward
-
-            obs_buf[step]  = obs
-            act_buf[step]  = a
-            rew_buf[step]  = reward
-            val_buf[step]  = value.item()
-            lp_buf[step]   = log_prob.item()
-            done_buf[step] = float(done)
-
-            obs = next_obs
-            total_steps += 1
-
-            if done:
-                episode_returns.append(current_return)
-                current_return = 0.0
-                obs, _ = env.reset()
-
-        # ------------------------------------------------------------------
-        # 2. Bootstrap value
-        # ------------------------------------------------------------------
-        with torch.no_grad():
-            s_tensor = torch.as_tensor(obs, dtype=torch.float32, device=device).unsqueeze(0)
-            _, next_value, _, _ = agent.forward_train(s_tensor)
-            next_value = next_value.item()
-
-        advantages, returns = compute_gae(rew_buf, val_buf, done_buf, next_value)
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-
-        # ------------------------------------------------------------------
-        # 3. PPO update
-        # ------------------------------------------------------------------
-        obs_t    = torch.as_tensor(obs_buf,    dtype=torch.float32, device=device)
-        act_t    = torch.as_tensor(act_buf,    dtype=torch.long,    device=device)
-        old_lp_t = torch.as_tensor(lp_buf,     dtype=torch.float32, device=device)
-        adv_t    = torch.as_tensor(advantages, dtype=torch.float32, device=device)
-        ret_t    = torch.as_tensor(returns,    dtype=torch.float32, device=device)
-
-        indices = np.arange(N_STEPS)
-        for _ in range(N_EPOCHS):
-            np.random.shuffle(indices)
-            for start in range(0, N_STEPS, BATCH_SIZE):
-                batch_idx = indices[start:start + BATCH_SIZE]
-                log_probs, values, entropy = agent.evaluate_actions(obs_t[batch_idx], act_t[batch_idx])
-                ratio     = torch.exp(log_probs - old_lp_t[batch_idx])
-                adv_batch = adv_t[batch_idx]
-                pg_loss   = torch.max(
-                    -adv_batch * ratio,
-                    -adv_batch * ratio.clamp(1.0 - CLIP_EPS, 1.0 + CLIP_EPS),
-                ).mean()
-                vf_loss  = ((values - ret_t[batch_idx]) ** 2).mean()
-                ent_loss = -entropy.mean()
-                loss = pg_loss + VF_COEF * vf_loss + ENT_COEF * ent_loss
-                optimizer.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(agent.parameters(), MAX_GRAD_NORM)
-                optimizer.step()
-
-        rollout_count += 1
-
-        # ------------------------------------------------------------------
-        # 4. Best model tracking
-        # ------------------------------------------------------------------
-        if episode_returns:
-            recent_mean = float(np.mean(episode_returns[-10:]))
-            if recent_mean > best_mean_return:
-                best_mean_return = recent_mean
-                torch.save(agent.policy.state_dict(), BEST_CKPT)
-                print(f"  -> New best ({recent_mean:.1f}), saved to {BEST_CKPT}")
-
-        # ------------------------------------------------------------------
-        # 5. Logging & resume checkpoint
-        # ------------------------------------------------------------------
-        if rollout_count % LOG_INTERVAL == 0 and episode_returns:
-            recent = episode_returns[-10:]
-            print(
-                f"Steps: {total_steps:>8,} | "
-                f"Episodes: {len(episode_returns):>5} | "
-                f"Mean (last 10): {np.mean(recent):>8.1f} | "
-                f"Best: {best_mean_return:>8.1f}"
-            )
-
-        if total_steps - last_save >= SAVE_INTERVAL:
-            torch.save({
-                'model':            agent.policy.state_dict(),
-                'optimizer':        optimizer.state_dict(),
-                'total_steps':      total_steps,
-                'best_mean_return': best_mean_return,
-                'episode_returns':  episode_returns,
-            }, RESUME_CKPT)
-            last_save = total_steps
-            print(f"  -> Resume checkpoint saved at step {total_steps:,}")
-
-    torch.save({
-        'model':            agent.policy.state_dict(),
-        'optimizer':        optimizer.state_dict(),
-        'total_steps':      total_steps,
-        'best_mean_return': best_mean_return,
-        'episode_returns':  episode_returns,
-    }, RESUME_CKPT)
-    print(f"Training complete. Best return: {best_mean_return:.1f} (saved to {BEST_CKPT})")
     env.close()
+    eval_env.close()
 
 
 if __name__ == "__main__":
