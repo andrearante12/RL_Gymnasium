@@ -18,7 +18,7 @@ from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
 from xxx import make_env
 
 N_ENVS      = 8
-TOTAL_STEPS = 1_000_000
+TOTAL_STEPS = 5_000_000
 SAVE_FREQ   = 50_000
 EVAL_FREQ   = 25_000
 
@@ -73,11 +73,13 @@ def train():
             n_steps=1024,           # per env; 1024 × 8 = 8192 total per rollout
             batch_size=64,
             n_epochs=4,
-            learning_rate=1e-3,
+            learning_rate=3e-4,
             gamma=0.999,
             gae_lambda=0.98,
             ent_coef=0.01,
+            target_kl=0.02,
             normalize_advantage=True,
+            policy_kwargs=dict(net_arch=[256, 256]),
             verbose=1,
             tensorboard_log="./tb_logs",
         )

@@ -51,14 +51,56 @@ class CarRacingWrapper(gym.Wrapper):
 
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
+        reward = np.clip(reward, a_min=None, a_max=1.0)
         self.frames.append(self._preprocess(obs))
         return self._get_obs(), reward, terminated, truncated, info
 
 
-def make_env(render_mode=None):
+class NegativeRewardTerminator(gym.Wrapper):
+    """Terminate episode early if cumulative reward drops below threshold."""
+
+    def __init__(self, env, threshold=-20.0):
+        super().__init__(env)
+        self.threshold = threshold
+        self.cumulative_reward = 0.0
+
+    def reset(self, **kwargs):
+        self.cumulative_reward = 0.0
+        return self.env.reset(**kwargs)
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        self.cumulative_reward += reward
+        if self.cumulative_reward < self.threshold:
+            terminated = True
+        return obs, reward, terminated, truncated, info
+
+
+class DiscreteActionWrapper(gym.ActionWrapper):
+    """Convert discrete action indices to continuous CarRacing actions."""
+    ACTIONS = np.array([
+        [-1.0, 0.0, 0.0],   # 0: turn left
+        [+1.0, 0.0, 0.0],   # 1: turn right
+        [ 0.0, 0.0, 0.8],   # 2: brake
+        [ 0.0, 1.0, 0.0],   # 3: accelerate
+        [ 0.0, 0.0, 0.0],   # 4: do nothing
+    ], dtype=np.float32)
+
+    def __init__(self, env):
+        super().__init__(env)
+        self.action_space = gym.spaces.Discrete(len(self.ACTIONS))
+
+    def action(self, act):
+        return self.ACTIONS[act]
+
+
+def make_env(render_mode=None, training=False):
     """Create and wrap CarRacing environment."""
     env = gym.make("CarRacing-v3", continuous=True, render_mode=render_mode, domain_randomize=True)
     env = CarRacingWrapper(env, n_stack=4, img_size=84)
+    if training:
+        env = NegativeRewardTerminator(env, threshold=-20.0)
+        env = DiscreteActionWrapper(env)
     return env
 
 
@@ -118,11 +160,9 @@ class xxxAgent(nn.Module):
         Eval mode: deterministic (Beta mean). Train mode: samples.
         """
         if self.model is not None:
-            # SB3 path: model.predict returns action already in env action space
             action, _ = self.model.predict(obs, deterministic=not self.training)
-            if action[1] > 0.5:     # gas/brake conflict prevention
-                action[2] = 0.0
-            return action
+            # SB3 returns discrete index; map to continuous for eval env
+            return DiscreteActionWrapper.ACTIONS[action]
         with torch.no_grad():
             x = self._to_tensor(obs)
             alpha, beta, _ = self.net(x)

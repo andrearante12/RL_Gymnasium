@@ -18,7 +18,7 @@ from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
 from xxx import make_env
 
 N_ENVS      = 8
-TOTAL_STEPS = 3_000_000
+TOTAL_STEPS = 10_000_000
 SAVE_FREQ   = 100_000       # total env steps between resume checkpoints
 EVAL_FREQ   = 50_000        # total env steps between evaluations
 
@@ -49,18 +49,31 @@ class OverwriteCheckpointCallback(BaseCallback):
 # ---------------------------------------------------------------------------
 
 def train():
-    env      = SubprocVecEnv([make_env] * N_ENVS)
-    eval_env = SubprocVecEnv([make_env])
+    env      = SubprocVecEnv([lambda: make_env(training=True)] * N_ENVS)
+    eval_env = SubprocVecEnv([lambda: make_env(training=True)])
 
     eval_cb = EvalCallback(
         eval_env,
         best_model_save_path=".",   # saves ./best_model.zip
-        n_eval_episodes=5,
+        n_eval_episodes=10,
         eval_freq=max(EVAL_FREQ // N_ENVS, 1),
         deterministic=True,
         verbose=1,
     )
     ckpt_cb = OverwriteCheckpointCallback(SAVE_FREQ, RESUME_CKPT, verbose=1)
+
+    hparams = dict(
+        n_steps=512,            # balance between throughput and update frequency
+        batch_size=256,
+        n_epochs=4,             # fewer epochs to spend more time collecting
+        learning_rate=3e-4,     # SB3 default
+        clip_range=0.2,         # SB3 default
+        gamma=0.99,
+        gae_lambda=0.95,
+        ent_coef=0.01,
+        vf_coef=0.5,
+        max_grad_norm=0.5,
+    )
 
     if os.path.exists(RESUME_CKPT + ".zip"):
         print(f"Resuming from {RESUME_CKPT}.zip ...")
@@ -78,15 +91,9 @@ def train():
         model = PPO(
             "CnnPolicy",
             env,
-            n_steps=512,            # per env; 512 × 8 = 4096 total per rollout
-            batch_size=128,
-            n_epochs=10,
-            learning_rate=lambda f: f * 1e-4,  # linear decay 1e-4 → 0
-            gamma=0.99,
-            gae_lambda=0.95,
-            ent_coef=0.01,
-            vf_coef=0.5,
-            max_grad_norm=0.5,
+            device="auto",
+            policy_kwargs=dict(normalize_images=False),
+            **hparams,
             verbose=1,
             tensorboard_log="./tb_logs",
         )
