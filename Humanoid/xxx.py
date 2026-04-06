@@ -61,9 +61,7 @@ def make_env(render_mode=None, testcase=None):
     return env
 
 
-# ---------------------------------------------------------------------------
 # Policy network (actor + critic with shared MLP body)
-# ---------------------------------------------------------------------------
 
 class _Policy(nn.Module):
     def __init__(self, obs_dim, act_dim, hidden=256):
@@ -84,16 +82,9 @@ class _Policy(nn.Module):
         return mean, std, value
 
 
-# ---------------------------------------------------------------------------
 # Agent
-# ---------------------------------------------------------------------------
 
 class xxxAgent:
-    """
-    PPO agent for Humanoid-v5 with Gaussian (Normal) continuous actions.
-
-    act(s, deterministic=True) → (action, log_prob, value)
-    """
 
     def __init__(self, obs_dim, act_dim, act_low, act_high, **kwargs):
         self.device  = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -113,16 +104,10 @@ class xxxAgent:
         self.policy.eval()
 
     def _scale_action(self, raw):
-        """Clamp raw Gaussian sample to [act_low, act_high]."""
         return raw.clamp(self.act_low, self.act_high)
 
     def act(self, s, deterministic=False, **kwargs):
-        """
-        Returns (action_numpy, log_prob_scalar, value_scalar).
-        Evaluation harness unpacks as: a, _, _ = agent.act(obs, deterministic=True)
-        """
         if self.model is not None:
-            # SB3 path: normalize obs if VecNormalize stats were loaded
             if self.norm_env is not None:
                 import numpy as np
                 obs_norm = self.norm_env.normalize_obs(np.array([s]))[0]
@@ -143,12 +128,6 @@ class xxxAgent:
         return action, log_prob.item(), value.item()
 
     def forward_train(self, s_tensor):
-        """
-        Training forward.
-        Returns (env_action, raw_sample, log_prob, value, entropy).
-          env_action  — clamped to [act_low, act_high], pass to env.step()
-          raw_sample  — unclamped Normal sample, store in buffer for log_prob recomputation
-        """
         mean, std, value = self.policy(s_tensor)
         dist       = torch.distributions.Normal(mean, std)
         raw_sample = dist.sample()
@@ -158,7 +137,6 @@ class xxxAgent:
         return env_action, raw_sample, log_prob, value, entropy
 
     def evaluate_actions(self, s_tensor, raw_samples_tensor):
-        """Recompute log_probs/values for stored raw (pre-clamp) Normal samples."""
         mean, std, value = self.policy(s_tensor)
         dist     = torch.distributions.Normal(mean, std)
         log_prob = dist.log_prob(raw_samples_tensor).sum(dim=-1)
@@ -167,13 +145,13 @@ class xxxAgent:
 
     def load(self, file, **kwargs):
         import os
-        base     = os.path.splitext(file)[0]    # "xxx.pt" → "xxx"
+        base     = os.path.splitext(file)[0]    
         zip_path = base + ".zip"
         if os.path.exists(zip_path):
             from stable_baselines3 import PPO
             from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
             self.model = PPO.load(base, device=self.device)
-            # Load normalization stats if they exist alongside the model
+
             vecnorm_path = os.path.join(os.path.dirname(base) or ".", "vecnorm.pkl")
             if os.path.exists(vecnorm_path):
                 venv = DummyVecEnv([make_env])
@@ -185,7 +163,6 @@ class xxxAgent:
             self.policy.load_state_dict(state)
         self.policy.eval()
 
-    # alias so both names work
     def load_parameter(self, file, **kwargs):
         self.load(file, **kwargs)
 

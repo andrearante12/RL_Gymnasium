@@ -1,27 +1,29 @@
-"""
-SB3 PPO training for Humanoid-v5 with VecNormalize.
-
-Target: Windows with RTX 4070 — SubprocVecEnv runs natively.
-
-Saves:
-  sb3_checkpoint.zip  — model weights + optimizer state for resume
-  vecnorm.pkl         — observation normalization statistics (updated at checkpoints)
-  xxx.zip             — best model for evaluation harness (load_parameter("xxx.pt"))
-
-Usage:
-    python train.py
-"""
-
 import os
+import random
+import gymnasium as gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
 from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
-from xxx import make_env
+from xxx import make_env, AwkwardStartWrapper
 
 N_ENVS      = 8
-TOTAL_STEPS = 20_000_000
+TOTAL_STEPS = 10_000_000
 SAVE_FREQ   = 200_000
 EVAL_FREQ   = 100_000
+
+
+def make_env_dr(render_mode=None):
+    env = gym.make("Humanoid-v5", render_mode=render_mode)
+    params = dict(
+        awkward_prob=random.uniform(0.0, 0.85),
+        z_drop_range=(0.0, random.uniform(0.03, 0.25)),
+        quat_noise=random.uniform(0.0, 0.12),
+        joint_noise=random.uniform(0.0, 0.35),
+        vel_noise=random.uniform(0.0, 0.80),
+        min_z=random.uniform(0.95, 1.10),
+    )
+    env = AwkwardStartWrapper(env, **params)
+    return env
 
 RESUME_CKPT = "sb3_checkpoint"
 VECNORM_PKL = "vecnorm.pkl"
@@ -29,7 +31,6 @@ BEST_MODEL  = "xxx"
 
 
 class CheckpointWithVecNormCallback(BaseCallback):
-    """Saves model + vecnorm stats together so they stay in sync."""
 
     def __init__(self, save_freq, model_path, vecnorm_path, verbose=1):
         super().__init__(verbose)
@@ -47,7 +48,7 @@ class CheckpointWithVecNormCallback(BaseCallback):
 
 
 def train():
-    raw_env  = SubprocVecEnv([make_env] * N_ENVS)
+    raw_env  = SubprocVecEnv([make_env_dr] * N_ENVS)
     raw_eval = SubprocVecEnv([make_env])
 
     if os.path.exists(RESUME_CKPT + ".zip") and os.path.exists(VECNORM_PKL):
@@ -59,7 +60,7 @@ def train():
         eval_env.training     = False
         eval_env.norm_reward  = False
         model = PPO.load(RESUME_CKPT, env=env, device="auto",
-            learning_rate=1e-4,
+            learning_rate=5e-5,
             target_kl=0.02,
             n_steps=512,
             batch_size=256,
@@ -98,7 +99,7 @@ def train():
         model = PPO(
             "MlpPolicy",
             env,
-            n_steps=512,            # per env; 512 × 4 = 2048 total per rollout
+            n_steps=512,            
             batch_size=256,
             n_epochs=10,
             learning_rate=3e-4,
@@ -117,7 +118,6 @@ def train():
             progress_bar=True,
         )
 
-    # Save final vecnorm stats (always up-to-date after training)
     env.save(VECNORM_PKL)
 
     if os.path.exists("best_model.zip"):
