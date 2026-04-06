@@ -1,1 +1,30 @@
 .claude/
+
+# TensorBoard logs
+**/tb_logs/
+**/tb_logs_discrete/
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+
+# Resume/backup checkpoints — keep only xxx.zip, xx.zip, vecnorm.pkl (main models)
+**/*backup*.zip
+**/*backup*.pkl
+**/sb3_checkpoint*.zip
+**/sb3_ft_ckpt*.zip
+**/vecnorm_*.pkl
+**/vecnorm_continuous.pkl
+**/best_model.zip
+**/checkpoint.pt
+
+# Old discrete/continuous experiment files
+CarRacing-v3/xxx_discrete_backup.zip
+CarRacing-v3/vecnorm_continuous.pkl
+CarRacing-v3/xxx.pt
+
+# LunarLander old pt file
+LunarLander-v3/xx.pt
+
+# Discrete testcase GIFs (not referenced in README)
+CarRacing-v3/testcase_discrete_*.gif
