@@ -51,7 +51,21 @@ class CarRacingWrapper(gym.Wrapper):
 
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
-        reward = np.clip(reward, a_min=None, a_max=1.0)
+
+        car = self.env.unwrapped.car
+        if car is not None:
+            # Speed bonus (small)
+            speed = np.sqrt(car.hull.linearVelocity[0]**2 + car.hull.linearVelocity[1]**2)
+            reward += 0.01 * speed / 100.0
+
+            # Grass penalty (gentle)
+            wheels_on_grass = sum(1 for w in car.wheels if len(w.tiles) == 0)
+            if wheels_on_grass > 0:
+                reward -= 0.1 * (wheels_on_grass / 4.0)
+
+            # Steering smoothness penalty (gentle)
+            reward -= 0.02 * abs(car.hull.angularVelocity)
+
         self.frames.append(self._preprocess(obs))
         return self._get_obs(), reward, terminated, truncated, info
 
@@ -99,8 +113,7 @@ def make_env(render_mode=None, training=False):
     env = gym.make("CarRacing-v3", continuous=True, render_mode=render_mode, domain_randomize=True)
     env = CarRacingWrapper(env, n_stack=4, img_size=84)
     if training:
-        env = NegativeRewardTerminator(env, threshold=-20.0)
-        env = DiscreteActionWrapper(env)
+        env = NegativeRewardTerminator(env, threshold=-50.0)
     return env
 
 
@@ -161,7 +174,6 @@ class xxxAgent(nn.Module):
         """
         if self.model is not None:
             action, _ = self.model.predict(obs, deterministic=not self.training)
-            # SB3 returns discrete index; map to continuous for eval env
             return DiscreteActionWrapper.ACTIONS[action]
         with torch.no_grad():
             x = self._to_tensor(obs)

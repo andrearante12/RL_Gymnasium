@@ -20,9 +20,7 @@ def make_env(render_mode=None, enable_wind=True, gravity=-10.0,
     return env
 
 
-# ---------------------------------------------------------------------------
 # Policy network (actor + critic with shared body)
-# ---------------------------------------------------------------------------
 
 class _Policy(nn.Module):
     def __init__(self, state_dim, n_actions, hidden=64):
@@ -39,15 +37,11 @@ class _Policy(nn.Module):
         return self.actor(h), self.critic(h).squeeze(-1)
 
 
-# ---------------------------------------------------------------------------
 # Agent
-# ---------------------------------------------------------------------------
 
 class xxxAgent:
     """
-    PPO agent for LunarLander-v3 with discrete actions (Categorical distribution).
-
-    act(s, greedy=True)  → int action (argmax for greedy, sample otherwise)
+    PPO agent for LunarLander-v3 with discrete actions 
     """
 
     def __init__(self, state_dim=8, n_actions=4, **kwargs):
@@ -77,14 +71,12 @@ class xxxAgent:
             return int(Categorical(logits=logits).sample().item())
 
     def forward_train(self, s_tensor):
-        """Training forward: returns (action, log_prob, value, entropy)."""
         logits, value = self.policy(s_tensor)
         dist = Categorical(logits=logits)
         action = dist.sample()
         return action, dist.log_prob(action), value, dist.entropy()
 
     def evaluate_actions(self, s_tensor, actions_tensor):
-        """Recompute log_probs/values for stored actions (PPO update step)."""
         logits, value = self.policy(s_tensor)
         dist = Categorical(logits=logits)
         return dist.log_prob(actions_tensor), value, dist.entropy()

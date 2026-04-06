@@ -4,76 +4,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ECE6882 Reinforcement Learning Project 2 — implement RL agents for three Gymnasium environments:
-- **CarRacing-v3** — image-based continuous control (Box2D)
-- **LunarLander-v3** — vector-state discrete control (Box2D)
-- **Humanoid-v5** — high-dimensional continuous control (MuJoCo)
+ECE6882 Reinforcement Learning course project. Three Gymnasium (gym) environments solved with PPO agents using PyTorch and Stable Baselines3:
 
-Agents are evaluated on 8 testcases (2 visible sample + 6 hidden). Final score is aggregated episode returns.
+- **LunarLander-v3** — Discrete actions, MLP policy, custom PyTorch PPO agent
+- **CarRacing-v3** — Continuous actions (Beta distribution), CNN policy (Nature DQN backbone), custom wrappers for grayscale/crop/frame-stack
+- **Humanoid-v5** — Continuous actions (Gaussian), MLP policy, uses VecNormalize for observation/reward normalization and an AwkwardStartWrapper for domain randomization
 
-## Running Evaluations
-
-Each environment has its own evaluation script. Run from within each subdirectory:
+## Key Commands
 
 ```bash
-# CarRacing (note: typo in filename — evaulation.py, not evaluation.py)
-cd CarRacing-v3 && python evaulation.py
+# Train an agent (from within its directory)
+python train.py
 
-# LunarLander
-cd LunarLander-v3 && python evaluation.py
-
-# Humanoid
-cd Humanoid && python evaluation.py
+# Evaluate an agent (runs 2 sample testcases, produces GIF outputs)
+python evaluation.py
 ```
 
-Each script runs 2 sample testcases (seeds 0 and 2), records GIF videos, and prints per-testcase scores and aggregate total.
+Training supports resumption from `sb3_checkpoint.zip`. Humanoid also requires `vecnorm.pkl` for VecNormalize state.
 
 ## Architecture
 
-### Pattern per environment
+Each environment directory follows the same structure:
 
-Each environment folder contains:
-- `xxx.py` — **implement here**: `make_env()` factory and `xxxAgent` class
-- `evaluation.py` — evaluation harness (do not modify)
-- `sample_testcase/` — reference GIF videos
+| File | Purpose |
+|------|---------|
+| `Arante_Andre.py` | Agent class + `make_env()` — the submission file (renamed from `xxx.py`) |
+| `train.py` | Training script using SB3's PPO with checkpoint/eval callbacks |
+| `evaluation.py` | Evaluation harness — imports from `Arante_Andre.py`, runs testcases, saves GIFs |
 
-### Agent class contract
+**Agent interface contract** (required by evaluation harness):
+- `__init__` — accepts env dimensions
+- `act(state)` — returns action given observation
+- `load_parameter(file)` — loads weights; supports both `.pt` (raw state_dict) and `.zip` (SB3 checkpoint)
 
-Every agent must implement exactly:
-```python
-def __init__(self, obs_dim, act_dim, ...):  # initialize model
-def act(self, state):                        # return action (and optionally log_prob, value)
-def load_parameter(self, file):              # load weights from checkpoint (.pt file)
-```
+**CarRacing-v3 specifics:** `utils.py` contains the `ActorCritic` CNN module. `make_env(training=True)` adds `NegativeRewardTerminator` and `DiscreteActionWrapper` (used only during training; evaluation uses continuous actions via Beta distribution).
 
-The `act()` signature must not change — the evaluation harness calls it directly.
+**Humanoid specifics:** `make_env` in `Arante_Andre.py` optionally wraps with `AwkwardStartWrapper`. Training uses `VecNormalize` — the agent's `load_parameter` automatically loads `vecnorm.pkl` from the same directory for inference-time normalization.
 
-### Environment-specific details
+## Dependencies
 
-**CarRacing-v3**
-- Input: RGB image frames; needs CNN-based policy (PPO recommended)
-- Output: continuous action
-- Agent inherits from `nn.Module`
-- Checkpoint file: `xxx.pt`
-
-**LunarLander-v3**
-- Input: 8-dim vector state; output: discrete action (4 choices)
-- Fixed env params (cannot change): `gravity=-10.0`, `enable_wind=True`, `wind_power=15.0`, `turbulence_power=1.5`
-- Agent is plain Python class (not `nn.Module`)
-- Checkpoint file: `xxx.pt`
-
-**Humanoid-v5**
-- Input: high-dimensional continuous state; output: continuous action
-- Constructor signature: `__init__(obs_dim, act_dim, act_low, act_high, **kwargs)`
-- `act()` must return tuple: `(action, log_prob, value)`
-- Wrapped with `AwkwardStartWrapper` — randomizes initial pose; testcase 1 uses 25% awkward probability, testcase 2 uses 70%
-- Checkpoint file: `xx.pt`
-- Rendering: EGL (headless MuJoCo)
-
-## Submission
-
-Rename `xxx.py` to `{groupname}.py`, then submit a folder `{groupname}_project2/` containing:
-- `{groupname}.py`
-- `evaluation.py`
-
-Submit to Google Drive (link in README.md).
+- `gymnasium` (with Box2D and MuJoCo)
+- `stable-baselines3`
+- `torch`
+- `opencv-python` (CarRacing preprocessing)
+- `imageio` (GIF recording in evaluation)

@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -c \":*)"
+      "Bash(ls -la *.gif)",
+      "Bash(ls -la *.zip *.pt)",
+      "Bash(python -c ':*)",
+      "Bash(python evaluation.py)"
     ]
   }
 }

@@ -1,16 +1,3 @@
-"""
-SB3 PPO training for LunarLander-v3.
-
-Target: Windows with RTX 4070 — SubprocVecEnv runs natively.
-
-Saves:
-  sb3_checkpoint.zip  — full training state for resume
-  xx.zip              — best model for evaluation harness (load_parameter("xx.pt"))
-
-Usage:
-    python train.py
-"""
-
 import os
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
